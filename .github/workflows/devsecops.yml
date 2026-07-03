@@ -35,3 +35,29 @@ jobs:
         with:
           name: dependency-check-report
           path: reports
+
+  dast:
+    name: DAST - OWASP ZAP
+    runs-on: ubuntu-latest
+    needs: [sast, sca]
+    services:
+      mongo:
+        image: mongo:4.0
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and start the app
+        run: |
+          docker build -t nodegoat-test .
+          docker run -d -p 4000:4000 --network="host" \
+            -e MONGODB_URI="mongodb://localhost:27017/nodegoat" \
+            nodegoat-test
+          sleep 15
+
+      - name: Run ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:4000'
+          fail_action: false
